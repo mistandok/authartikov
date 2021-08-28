@@ -1,4 +1,4 @@
-# FasrAPI server
+#FastAPI application
 import base64
 import hmac
 import hashlib
