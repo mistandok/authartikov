@@ -5,17 +5,23 @@ import hashlib
 import binascii
 import json
 
+from decouple import config
+
 from typing import Optional
 
-from fastapi import FastAPI, Form, Cookie, Body
-from fastapi import responses
+from fastapi import FastAPI, Form, Cookie, Body, Request
 from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
-SECREET_KEY = "34afd03e10a6652120317d73b547363f18e019ebad120b89c5793ef4c5ac86e8"
-PASSWORD_SALT = 'f5855952f3d0142c1a050d93c4df0980b0562d79e28d44e59b2a4a68523616bf'
+SECREET_KEY = config("SECREET_KEY")
+PASSWORD_SALT = config("PASSWORD_SALT")
+
 
 users = {
     "alexey@user.com": {
@@ -60,24 +66,21 @@ def verify_password(username: str, password: str) -> bool:
 
 
 @app.get("/")
-def index_page(username: Optional[str] = Cookie(default=None)):
-    with open('templates/login.html', 'r') as f:
-        login_page = f.read()
-
+def index_page(request: Request, username: Optional[str] = Cookie(default=None)):
     if not username:
-        return Response(login_page, media_type="text/html")
+        return templates.TemplateResponse("login.html", {"request": request})
 
     valid_username = get_username_from_signed_string(username)
 
     if not valid_username:
-        response = Response(login_page, media_type="text/html")
+        response = templates.TemplateResponse("login.html", {"request": request})
         response.delete_cookie(key='username')
         return response
 
     try:
         user = users[valid_username]
     except KeyError:
-        response = Response(login_page, media_type="text/html")
+        response = templates.TemplateResponse("login.html", {"request": request})
         response.delete_cookie(key='username')
         return response
 
@@ -86,6 +89,31 @@ def index_page(username: Optional[str] = Cookie(default=None)):
         f"Баланс: {users[valid_username]['balance']}",
          media_type="text/html"
         )
+
+
+@app.post("/login")
+def process_login_page(data: dict = Body(...)):
+    username, password = data["username"], data["password"]
+    user = users.get(username)
+    print(f'Username {username}, Password {password}')
+    if not user or not verify_password(username, password):
+        return Response(
+            json.dumps({
+                "success": False,
+                "message": "Я вас не знаю!"
+            }),
+            media_type="application/json")
+    
+    response = Response(
+        json.dumps({
+            "success": True,
+            "message": f"Привет, {user['name']}! <br />Баланс: {user['balance']}"
+        })
+        , media_type="text/html")
+    username_signed = base64.b64encode(username.encode()).decode() + "." + sign_data(username)
+    response.set_cookie(key="username", value=username_signed)
+    return response
+
 
 # @app.post("/login")
 # def process_login_page(username: str = Form(...), password: str = Form(...)):
@@ -107,25 +135,3 @@ def index_page(username: Optional[str] = Cookie(default=None)):
 #     username_signed = base64.b64encode(username.encode()).decode() + "." + sign_data(username)
 #     response.set_cookie(key="username", value=username_signed)
 #     return response
-
-@app.post("/login")
-def process_login_page(data: dict = Body(...)):
-    username, password = data["username"], data["password"]
-    user = users.get(username)
-    if not user or not verify_password(username, password):
-        return Response(
-            json.dumps({
-                "success": False,
-                "message": "Я вас не знаю!"
-            }),
-            media_type="application/json")
-    
-    response = Response(
-        json.dumps({
-            "success": True,
-            "message": f"Привет, {user['name']}! <br />Баланс: {user['balance']}"
-        })
-        , media_type="text/html")
-    username_signed = base64.b64encode(username.encode()).decode() + "." + sign_data(username)
-    response.set_cookie(key="username", value=username_signed)
-    return response
