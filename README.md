@@ -1,5 +1,3 @@
-# authartikov
-authentification
 <p style="text-align: center;"><strong>Пример страницы логирования, написанный на FastAPI.</strong></p>
 <p></p>
 <p>Сервер производит аутентификацию пользователей.</p>
@@ -22,4 +20,5 @@ authentification
 <li>Скопировать к себе в директорию указанный репозиторий:&nbsp;git clone&nbsp;<a href="https://github.com/mistandok/authartikov.git">https://github.com/mistandok/authartikov.git</a></li>
 <li>Установить необходимые пакеты, для работы сервера: pip<span>&nbsp;install -r requirements.txt</span></li>
 <li><span>Запустить сервер: uvicorn server:app (по умолчанию запускается на ip = 127.0.0.1, port = 8000)</span></li>
+<li><span>В браузере перейти на по адресу: http://127.0.0.1:8000/</span></li>
 </ol>
